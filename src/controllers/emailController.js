@@ -228,13 +228,6 @@ const trackEmailOpen = async (req, res) => {
       const userAgent = req.headers["user-agent"];
       const referer = req.headers["referer"] || "direct";
 
-      // Check if this is a duplicate tracking request within the last minute
-      const oneMinuteAgo = new Date(Date.now() - 60000);
-      if (email.lastOpenedAt && email.lastOpenedAt > oneMinuteAgo) {
-        console.log("[TRACKING] Duplicate tracking request detected, skipping count increment");
-        return sendTransparentPixel(res);
-      }
-
       // Update email status and openedAt if it's the first open
       if (email.status === "sent") {
         email.status = "opened";
