@@ -78,24 +78,12 @@ const sendEmail = async (req, res) => {
     console.log("[DEBUG] Generated tracking pixel URL:", trackingPixelUrl);
     console.log("[DEBUG] BASE_URL from env:", baseUrl);
 
-    // Create a more robust tracking implementation
+    // Create a more reliable tracking implementation
     const trackingHtml = `
     <!-- Email tracking -->
     <div style="display:none;">
-      <!-- Primary tracking pixel -->
-      <img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;">
-      
-      <!-- Fallback tracking link -->
-      <a href="${trackingPixelUrl}" style="display:none;">Track email open</a>
-      
-      <!-- Additional tracking methods -->
-      <div style="display:none;">
-        <img src="${trackingPixelUrl}&method=img1" width="1" height="1" alt="">
-        <img src="${trackingPixelUrl}&method=img2" width="1" height="1" alt="">
-      </div>
-      
-      <!-- CSS background image tracking -->
-      <div style="background-image: url('${trackingPixelUrl}&method=css'); display:none;"></div>
+      <!-- Primary tracking pixel with cache-busting -->
+      <img src="${trackingPixelUrl}&t=${Date.now()}" width="1" height="1" alt="" style="display:none;">
     </div>`;
 
     // Append tracking to email content
@@ -228,6 +216,17 @@ const trackEmailOpen = async (req, res) => {
       const userAgent = req.headers["user-agent"];
       const referer = req.headers["referer"] || "direct";
 
+      // Additional validation checks
+      const isPreviewMode = req.headers["x-preview-mode"] === "true";
+      const isAutoLoad = req.headers["x-auto-load"] === "true";
+      const isBot = /bot|crawler|spider|slurp/i.test(userAgent || "");
+
+      // Skip tracking if it's a preview, auto-load, or bot
+      if (isPreviewMode || isAutoLoad || isBot) {
+        console.log("[TRACKING] Skipping tracking for preview/auto-load/bot");
+        return sendTransparentPixel(res);
+      }
+
       // Check if this is a duplicate tracking request within the last minute
       const oneMinuteAgo = new Date(Date.now() - 60000);
       if (email.lastOpenedAt && email.lastOpenedAt > oneMinuteAgo) {
@@ -251,6 +250,8 @@ const trackEmailOpen = async (req, res) => {
       // Add tracking metadata
       if (!email.metadata) email.metadata = {};
       email.metadata.referer = referer;
+      email.metadata.trackingTimestamp = new Date();
+      email.metadata.trackingMethod = method || "default";
 
       console.log(`[TRACKING] Incremented openCount to ${email.openCount}`);
       console.log(`[TRACKING] Tracking method: ${method}`);
