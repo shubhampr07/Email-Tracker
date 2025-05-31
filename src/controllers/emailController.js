@@ -78,11 +78,24 @@ const sendEmail = async (req, res) => {
     console.log("[DEBUG] Generated tracking pixel URL:", trackingPixelUrl);
     console.log("[DEBUG] BASE_URL from env:", baseUrl);
 
-    // Create a more discreet tracking implementation
+    // Create a more robust tracking implementation
     const trackingHtml = `
-    <!-- Email content -->
+    <!-- Email tracking -->
     <div style="display:none;">
-      <img src="${trackingPixelUrl}" width="0" height="0" alt="" style="position:absolute;visibility:hidden;pointer-events:none;opacity:0;z-index:-1;">
+      <!-- Primary tracking pixel -->
+      <img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;">
+      
+      <!-- Fallback tracking link -->
+      <a href="${trackingPixelUrl}" style="display:none;">Track email open</a>
+      
+      <!-- Additional tracking methods -->
+      <div style="display:none;">
+        <img src="${trackingPixelUrl}&method=img1" width="1" height="1" alt="">
+        <img src="${trackingPixelUrl}&method=img2" width="1" height="1" alt="">
+      </div>
+      
+      <!-- CSS background image tracking -->
+      <div style="background-image: url('${trackingPixelUrl}&method=css'); display:none;"></div>
     </div>`;
 
     // Append tracking to email content
@@ -330,13 +343,15 @@ const sendTransparentPixel = (res) => {
     "hex"
   );
 
-  // Set headers to prevent caching and make it look like a regular image
+  // Set headers to prevent caching
   res.setHeader("Content-Type", "image/gif");
   res.setHeader("Content-Length", transparentGifBuffer.length);
-  res.setHeader("Cache-Control", "public, max-age=31536000");
-  res.setHeader("ETag", '"' + Date.now() + '"');
-  res.setHeader("Last-Modified", new Date().toUTCString());
-  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate"
+  );
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
 
   // Send the transparent GIF
   res.end(transparentGifBuffer);
