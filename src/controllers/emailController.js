@@ -227,7 +227,13 @@ const trackEmailOpen = async (req, res) => {
       const ipAddress = req.ip || req.connection.remoteAddress;
       const userAgent = req.headers["user-agent"];
       const referer = req.headers["referer"] || "direct";
-      const trackingMethod = method || "default";
+
+      // Check if this is a duplicate tracking request within the last minute
+      const oneMinuteAgo = new Date(Date.now() - 60000);
+      if (email.lastOpenedAt && email.lastOpenedAt > oneMinuteAgo) {
+        console.log("[TRACKING] Duplicate tracking request detected, skipping count increment");
+        return sendTransparentPixel(res);
+      }
 
       // Update email status and openedAt if it's the first open
       if (email.status === "sent") {
@@ -244,15 +250,10 @@ const trackEmailOpen = async (req, res) => {
 
       // Add tracking metadata
       if (!email.metadata) email.metadata = {};
-      email.metadata.trackingMethods = email.metadata.trackingMethods || [];
-      if (!email.metadata.trackingMethods.includes(trackingMethod)) {
-        email.metadata.trackingMethods.push(trackingMethod);
-      }
-      email.metadata.lastTrackingMethod = trackingMethod;
       email.metadata.referer = referer;
 
       console.log(`[TRACKING] Incremented openCount to ${email.openCount}`);
-      console.log(`[TRACKING] Tracking method: ${trackingMethod}`);
+      console.log(`[TRACKING] Tracking method: ${method}`);
       console.log(`[TRACKING] Referer: ${referer}`);
 
       // Simple device detection
